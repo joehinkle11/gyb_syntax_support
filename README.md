@@ -13,3 +13,8 @@ Following [SwiftSyntax](https://github.com/apple/swift-syntax/)'s format...
 | Xcode Release | Swift Release Tag | SwiftSyntax Release Tag  | gyb_syntax_support Release Tag  |
 |:-------------------:|:-------------------:|:-------------------------:|:-------------------------:|
 | Xcode 11.4   | swift-5.2-RELEASE   | 0.50200.0 | swift-5.2-RELEASE |
+
+
+Notes: the default branch is `main`
+
+If someone knows how to automate this, that would be nice, but it isn't very critical as I just plan to update with major Swift releases for now.
