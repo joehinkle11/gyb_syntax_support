@@ -62,6 +62,8 @@ ATTRIBUTE_NODES = [
                              kind='ImplementsAttributeArguments'),
                        Child('DifferentiableArguments',
                              kind='DifferentiableAttributeArguments'),
+                       Child('DerivativeRegistrationArguments',
+                             kind='DerivativeRegistrationAttributeArguments'),
                        Child('NamedAttributeString',
                              kind='NamedAttributeStringArgument'),
                    ], description='''
@@ -203,33 +205,26 @@ ATTRIBUTE_NODES = [
 
     # The argument of '@differentiable(...)'.
     # differentiable-attr-arguments ->
-    #     differentiation-params-clause? ','?
-    #     differentiable-attr-func-specifier? # jvp
-    #     differentiable-attr-func-specifier? # vjp
-    #     generic-where-clause?
+    #     differentiability-params-clause? ','? generic-where-clause?
     Node('DifferentiableAttributeArguments', kind='Syntax',
          description='''
          The arguments for the `@differentiable` attribute: an optional
-         differentiation parameter list and associated functions.
+         differentiability parameter clause and an optional 'where' clause.
          ''',
          children=[
-             Child('DiffParams', kind='DifferentiationParamsClause',
+             Child('DiffParams', kind='DifferentiabilityParamsClause',
                    is_optional=True),
              Child('DiffParamsComma', kind='CommaToken', description='''
-                   The comma following the differentiation parameters clause,
+                   The comma following the differentiability parameters clause,
                    if it exists.
                    ''', is_optional=True),
-             Child('MaybeJVP', kind='DifferentiableAttributeFuncSpecifier',
-                   is_optional=True),
-             Child('MaybeVJP', kind='DifferentiableAttributeFuncSpecifier',
-                   is_optional=True),
              Child('WhereClause', kind='GenericWhereClause', is_optional=True),
          ]),
 
-    # differentiation-params-clause ->
-    #     'wrt' ':' (differentiation-param | differentiation-params)
-    Node('DifferentiationParamsClause', kind='Syntax',
-         description='A clause containing differentiation parameters.',
+    # differentiability-params-clause ->
+    #     'wrt' ':' (differentiability-param | differentiability-params)
+    Node('DifferentiabilityParamsClause', kind='Syntax',
+         description='A clause containing differentiability parameters.',
          children=[
              Child('WrtLabel', kind='IdentifierToken',
                    text_choices=['wrt'], description='The "wrt" label.'),
@@ -238,32 +233,32 @@ ATTRIBUTE_NODES = [
                    '''),
              Child('Parameters', kind='Syntax',
                    node_choices=[
-                       Child('Parameter', kind='DifferentiationParam'),
-                       Child('ParameterList', kind='DifferentiationParams'),
+                       Child('Parameter', kind='DifferentiabilityParam'),
+                       Child('ParameterList', kind='DifferentiabilityParams'),
                    ]),
          ]),
 
-    # differentiation-params -> '(' differentiation-param-list ')'
-    Node('DifferentiationParams', kind='Syntax',
-         description='The differentiation parameters.',
+    # differentiability-params -> '(' differentiability-param-list ')'
+    Node('DifferentiabilityParams', kind='Syntax',
+         description='The differentiability parameters.',
          children=[
              Child('LeftParen', kind='LeftParenToken'),
-             Child('DiffParams', kind='DifferentiationParamList',
-                   collection_element_name='DifferentiationParam',
+             Child('DiffParams', kind='DifferentiabilityParamList',
+                   collection_element_name='DifferentiabilityParam',
                    description='The parameters for differentiation.'),
              Child('RightParen', kind='RightParenToken'),
          ]),
 
-    # differentiation-param-list ->
-    #     differentiation-param differentiation-param-list?
-    Node('DifferentiationParamList', kind='SyntaxCollection',
-         element='DifferentiationParam'),
+    # differentiability-param-list ->
+    #     differentiability-param differentiability-param-list?
+    Node('DifferentiabilityParamList', kind='SyntaxCollection',
+         element='DifferentiabilityParam'),
 
-    # differentiation-param -> ('self' | identifer) ','?
-    Node('DifferentiationParam', kind='Syntax',
+    # differentiability-param -> ('self' | identifer | integer-literal) ','?
+    Node('DifferentiabilityParam', kind='Syntax',
          description='''
-         A differentiation parameter: either the "self" identifier or a
-         function parameter name.
+         A differentiability parameter: either the "self" identifier, a function
+         parameter name, or a function parameter index.
          ''',
          traits=['WithTrailingComma'],
          children=[
@@ -271,25 +266,74 @@ ATTRIBUTE_NODES = [
                    node_choices=[
                        Child('Self', kind='SelfToken'),
                        Child('Name', kind='IdentifierToken'),
+                       Child('Index', kind='IntegerLiteralToken'),
                    ]),
              Child('TrailingComma', kind='CommaToken', is_optional=True),
          ]),
 
-    # differentiable-attr-func-specifier ->
-    #     ('jvp' | 'vjp') ':' func-decl-name ','?
-    Node('DifferentiableAttributeFuncSpecifier', kind='Syntax',
+    # The argument of the derivative registration attribute
+    # '@derivative(of: ...)' and the transpose registration attribute
+    # '@transpose(of: ...)'.
+    #
+    # derivative-registration-attr-arguments ->
+    #     'of' ':' func-decl-name ','? differentiability-params-clause?
+    Node('DerivativeRegistrationAttributeArguments', kind='Syntax',
          description='''
-         A function specifier, consisting of an identifier, colon, and a
-         function declaration name (e.g. `vjp: foo(_:_:)`).
+         The arguments for the '@derivative(of:)' and '@transpose(of:)'
+         attributes: the 'of:' label, the original declaration name, and an
+         optional differentiability parameter list.
          ''',
-         traits=['WithTrailingComma'],
          children=[
-             Child('Label', kind='IdentifierToken',
-                   text_choices=['jvp', 'vjp']),
-             Child('Colon', kind='ColonToken'),
-             Child('FunctionDeclName', kind='FunctionDeclName',
-                   description='The referenced function name.'),
-             Child('TrailingComma', kind='CommaToken', is_optional=True),
+             Child('OfLabel', kind='IdentifierToken', text_choices=['of'],
+                   description='The "of" label.'),
+             Child('Colon', kind='ColonToken', description='''
+                   The colon separating the "of" label and the original
+                   declaration name.
+                   '''),
+             Child('OriginalDeclName', kind='QualifiedDeclName',
+                   description='The referenced original declaration name.'),
+             Child('Comma', kind='CommaToken', is_optional=True),
+             Child('DiffParams', kind='DifferentiabilityParamsClause',
+                   is_optional=True),
+         ]),
+
+    # An optionally qualified declaration name.
+    # Currently used only for `@derivative` and `@transpose` attribute.
+    # TODO(TF-1066): Use module qualified name syntax/parsing instead of custom
+    # qualified name syntax/parsing.
+    #
+    # qualified-decl-name ->
+    #     base-type? '.'? (identifier | operator) decl-name-arguments?
+    # base-type ->
+    #     member-type-identifier | base-type-identifier
+    Node('QualifiedDeclName', kind='Syntax',
+         description='''
+         An optionally qualified function declaration name (e.g. `+(_:_:)`,
+         `A.B.C.foo(_:_:)`).
+         ''',
+         children=[
+             Child('BaseType', kind='Type', description='''
+                   The base type of the qualified name, optionally specified.
+                   ''', is_optional=True),
+             Child('Dot', kind='Token',
+                   token_choices=[
+                       'PeriodToken', 'PrefixPeriodToken'
+                   ], is_optional=True),
+             Child('Name', kind='Token', description='''
+                   The base name of the referenced function.
+                   ''',
+                   token_choices=[
+                       'IdentifierToken',
+                       'UnspacedBinaryOperatorToken',
+                       'SpacedBinaryOperatorToken',
+                       'PrefixOperatorToken',
+                       'PostfixOperatorToken',
+                   ]),
+             Child('Arguments', kind='DeclNameArguments',
+                   is_optional=True, description='''
+                   The argument labels of the referenced function, optionally
+                   specified.
+                   '''),
          ]),
 
     # func-decl-name -> (identifier | operator) decl-name-arguments?

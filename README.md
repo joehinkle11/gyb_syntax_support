@@ -12,6 +12,7 @@ Following [SwiftSyntax](https://github.com/apple/swift-syntax/)'s format...
 
 | Xcode Release | Swift Release Tag | SwiftSyntax Release Tag  | gyb_syntax_support Release Tag  |
 |:-------------------:|:-------------------:|:-------------------------:|:-------------------------:|
+| Xcode 12.0   | swift-5.3-RELEASE   | 0.50300.0 | swift-5.3-RELEASE |
 | Xcode 11.4   | swift-5.2-RELEASE   | 0.50200.0 | swift-5.2-RELEASE |
 
 
